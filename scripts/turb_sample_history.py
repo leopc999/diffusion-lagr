@@ -92,8 +92,11 @@ def main():
             label_arr = np.concatenate(all_labels, axis=0)
         if dist.get_rank() == 0:
             shape_str = "x".join([str(x) for x in arr.shape])
+            history_dir = os.path.join(logger.get_dir(), "samples_history-seed0")
+            # 原代码不创建该目录，首次运行会因目录不存在而写盘失败
+            os.makedirs(history_dir, exist_ok=True)
             out_path = os.path.join(
-                logger.get_dir(), "samples_history-seed0",
+                history_dir,
                 f"batch{curr_batch:03d}-samples_history_{shape_str}.npz"
             )
             logger.log(f"saving to {out_path}")
