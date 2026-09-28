@@ -51,8 +51,8 @@ def main():
     #     np.load('../velocity_module-IS64-NC128-NRB3-DS4000-NScosine-LR1e-4-BS256-sample/fixed_noise_64x1x64x64.npy')
     # ).to(dtype=th.float32, device=dist_util.dev())
     import os
-    # 未设置 CUDA_VISIBLE_DEVICES 时不再抛 KeyError：取第一个可见设备号作 seed
-    # （如 CUDA_VISIBLE_DEVICES=0 -> seed=0；=0,1 -> seed=0）
+    # Do not raise KeyError when CUDA_VISIBLE_DEVICES is unset: seed from the first
+    # visible device index (e.g. '0' -> seed 0, '0,1' -> seed 0).
     _visible = os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",")[0].strip() or "0"
     seed = 0*8 + int(_visible)
     th.manual_seed(seed)

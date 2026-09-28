@@ -1,4 +1,4 @@
-# ---- 运行产物 / 检查点（不进版本库）----
+# ---- Run artifacts and checkpoints (not versioned) ----
 runs/
 *.pt
 *.npz
@@ -7,7 +7,7 @@ __pycache__/
 *.pyc
 *.log
 
-# ---- 大数据：只忽略训练用的全量 h5（datasets/*-demo.h5 保留，冒烟测试要用）----
+# ---- Large data: ignore only the full-size training HDF5 files; the small *-demo.h5 pair used by the smoke test stays tracked ----
 datasets/Lagr_u3c_diffusion.h5
 datasets/Lagr_u1c_diffusion.h5
 datasets/*.zip

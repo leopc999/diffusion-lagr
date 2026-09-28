@@ -5,15 +5,17 @@ import numpy as np
 
 
 def _open_h5(path):
-    """打开 h5：优先使用 h5py 的 MPI 驱动（原仓库写法），不可用时回退到串行驱动。
+    """Open an HDF5 file: try the h5py MPI driver first (as the released code does),
+    and fall back to the serial driver when it is unavailable.
 
-    这样在没有安装 MPI 版 h5py 的机器上也能直接跑单卡训练，无需手工改动本文件里的两处调用。
+    A host without an MPI-built h5py can therefore train on a single GPU without
+    editing the two call sites in this file by hand.
     """
     try:
         return h5py.File(path, 'r', driver='mpio', comm=MPI.COMM_SELF)
-    except Exception as e:  # 驱动缺失/不可用时可能抛 ValueError/KeyError/OSError
-        print(f"[turb_datasets] 警告: 无法使用 mpio 驱动（{e!r}），已回退到串行 h5py 读取；"
-              f"若要多进程训练请安装 MPI 版 h5py。", flush=True)
+    except Exception as e:  # a missing/unsupported driver raises ValueError/KeyError/OSError
+        print(f"[turb_datasets] warning: cannot use the mpio driver ({e!r}); falling back "
+              f"to serial h5py. Install an MPI-built h5py for multi-process training.", flush=True)
         return h5py.File(path, 'r')
 
 
@@ -44,7 +46,7 @@ def load_data(
     rank = comm.Get_rank()
     size = comm.Get_size()
 
-    with _open_h5(dataset_path) as f:  # 优先 mpio，不可用则自动回退串行
+    with _open_h5(dataset_path) as f:  # mpio first, serial fallback
         len_dataset = f[dataset_name].len()
 
     chunk_size = len_dataset // size
@@ -85,7 +87,7 @@ class TurbDataset(Dataset):
     def __getitem__(self, idx):
         idx += self.start_idx
 
-        with _open_h5(self.dataset_path) as f:  # 优先 mpio，不可用则自动回退串行
+        with _open_h5(self.dataset_path) as f:  # mpio first, serial fallback
             data = f[self.dataset_name][idx].astype(np.float32)
             data = np.moveaxis(data, -1, 0)
 
