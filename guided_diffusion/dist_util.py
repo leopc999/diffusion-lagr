@@ -11,9 +11,9 @@ from mpi4py import MPI
 import torch as th
 import torch.distributed as dist
 
-# Change this to reflect your cluster layout.
 # The GPU for a given rank is (rank % GPUS_PER_NODE).
-GPUS_PER_NODE = 8
+# 默认取当前可见的 GPU 数（单卡即 1）；可用环境变量 GPUS_PER_NODE 覆盖以适配集群布局。
+GPUS_PER_NODE = int(os.environ.get("GPUS_PER_NODE", th.cuda.device_count() or 1))
 
 SETUP_RETRY_COUNT = 3
 
@@ -24,9 +24,16 @@ def setup_dist():
     """
     if dist.is_initialized():
         return
-    os.environ["CUDA_VISIBLE_DEVICES"] = f"{MPI.COMM_WORLD.Get_rank() % GPUS_PER_NODE}"
 
     comm = MPI.COMM_WORLD
+    if comm.size > GPUS_PER_NODE:
+        raise RuntimeError(
+            f"启动了 {comm.size} 个进程，但可见 GPU 只有 {GPUS_PER_NODE} 张。"
+            f"本仓库按 rank % GPUS_PER_NODE 选卡，多出的进程会指向不存在的设备。"
+            f"单卡请只启动 1 个进程（如需覆盖此判定可设置环境变量 GPUS_PER_NODE）。"
+        )
+    os.environ["CUDA_VISIBLE_DEVICES"] = f"{comm.Get_rank() % GPUS_PER_NODE}"
+
     backend = "gloo" if not th.cuda.is_available() else "nccl"
 
     if backend == "gloo":
