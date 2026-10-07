@@ -147,6 +147,10 @@ def create_argparser():
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
+    # Accept the hyphenated spelling too: add_dict_to_argparser registers the raw dict key
+    # (save_per_batch -> --save_per_batch) and argparse does not map --save-per-batch onto it.
+    parser.add_argument("--save-per-batch", dest="save_per_batch", default=False,
+                        help=argparse.SUPPRESS)
     return parser
 
 
