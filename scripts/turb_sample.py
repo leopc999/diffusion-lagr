@@ -54,9 +54,11 @@ def main():
     # Do not raise KeyError when CUDA_VISIBLE_DEVICES is unset: seed from the first
     # visible device index (e.g. '0' -> seed 0, '0,1' -> seed 0).
     _visible = os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",")[0].strip() or "0"
-    seed = 0*8 + int(_visible)
+    seed = 0*8 + int(_visible) if args.seed is None else int(args.seed)
     th.manual_seed(seed)
-    while len(all_images) * args.batch_size < args.num_samples:
+    logger.log(f"manual_seed({seed})")
+    n_done, curr_batch = 0, 0
+    while n_done < args.num_samples:
         model_kwargs = {}
         if args.class_cond:
             classes = th.randint(
@@ -82,14 +84,36 @@ def main():
 
         gathered_samples = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
         dist.all_gather(gathered_samples, sample)  # gather not supported with NCCL
-        all_images.extend([sample.cpu().numpy() for sample in gathered_samples])
+        batch_np = [sample.cpu().numpy() for sample in gathered_samples]
+        n_done += dist.get_world_size() * args.batch_size
+        curr_batch += 1
+        if args.save_per_batch:
+            if (not dist.is_initialized()) or dist.get_rank() == 0:
+                arr_b = np.concatenate(batch_np, axis=0)
+                os.makedirs(logger.get_dir(), exist_ok=True)
+                bp = os.path.join(
+                    logger.get_dir(),
+                    "samples_batch%03d_%s.npz" % (curr_batch, "x".join(str(v) for v in arr_b.shape)),
+                )
+                logger.log(f"saving to {bp}")
+                np.savez(bp, arr_b)
+        else:
+            all_images.extend(batch_np)
         if args.class_cond:
             gathered_labels = [
                 th.zeros_like(classes) for _ in range(dist.get_world_size())
             ]
             dist.all_gather(gathered_labels, classes)
             all_labels.extend([labels.cpu().numpy() for labels in gathered_labels])
-        logger.log(f"created {len(all_images) * args.batch_size} samples")
+        logger.log(f"created {n_done} samples")
+
+    if args.save_per_batch:
+        logger.log("save_per_batch=True: every batch was dumped separately, so the combined "
+                   "file is skipped; merge them with scripts/21_concat_samples.py into the "
+                   "official samples_<N>x2000x<C>.npz layout")
+        if dist.get_world_size() > 1:
+            dist.barrier()
+        return
 
     arr = np.concatenate(all_images, axis=0)
     arr = arr[: args.num_samples]
@@ -117,6 +141,8 @@ def create_argparser():
         batch_size=16,
         use_ddim=False,
         model_path="",
+        seed=None,            # None => keep the official convention: seed = 0*8 + first visible device id
+        save_per_batch=False,  # True => dump each batch as soon as it is ready (survives Ctrl-C)
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
