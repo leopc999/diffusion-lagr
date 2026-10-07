@@ -87,6 +87,8 @@ def sync_params(params):
     """
     Synchronize a sequence of Tensors across ranks from rank 0.
     """
+    if not dist.is_initialized() or dist.get_world_size() == 1:
+        return
     for p in params:
         with th.no_grad():
             dist.broadcast(p, 0)

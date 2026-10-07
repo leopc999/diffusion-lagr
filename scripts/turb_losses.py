@@ -85,7 +85,8 @@ def run_losses_evaluation(model, diffusion, data, num_samples):
             logger.log(f"saving {name} losses to {out_path}")
             np.savez(out_path, losses)
 
-    dist.barrier()
+    if dist.get_world_size() > 1:
+        dist.barrier()
     logger.log("evaluation complete")
 
 

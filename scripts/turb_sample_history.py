@@ -105,7 +105,8 @@ def main():
             else:
                 np.savez(out_path, arr)
 
-    dist.barrier()
+    if dist.get_world_size() > 1:
+        dist.barrier()
     logger.log("sampling complete")
 
 

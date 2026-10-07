@@ -88,7 +88,7 @@ class TrainLoop:
                 for _ in range(len(self.ema_rate))
             ]
 
-        if th.cuda.is_available():
+        if th.cuda.is_available() and dist.get_world_size() > 1:
             self.use_ddp = True
             self.ddp_model = DDP(
                 self.model,
@@ -252,7 +252,8 @@ class TrainLoop:
             ) as f:
                 th.save(self.opt.state_dict(), f)
 
-        dist.barrier()
+        if dist.get_world_size() > 1:
+            dist.barrier()
 
 
 def parse_resume_step_from_filename(filename):
