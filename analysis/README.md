@@ -47,7 +47,7 @@ $LTS_ROOT/Data/Reproduce/samples_*.npz          # retrained samples, not distrib
 ```
 
 The paper's source data are the supplementary files of Li et al. (2024),
-*Nature Machine Intelligence* 6, 1440 (article `s42256-024-00810-0`):
+*Nature Machine Intelligence* 6, 393–403 (article `s42256-024-00810-0`):
 
 | file | used for |
 | --- | --- |
